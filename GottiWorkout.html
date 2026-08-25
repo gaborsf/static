@@ -245,11 +245,52 @@
       padding: 20px;
       width: 100%;
       max-width: 500px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .history-container {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin: 10px 0;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    .history-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 0.8rem;
+    }
+
+    .history-item:last-child {
+      border-bottom: none;
+    }
+
+    .history-date {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+
+    .history-tag {
+      background: rgba(239, 68, 68, 0.2);
+      color: var(--accent);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 0.75rem;
+      margin-left: 4px;
     }
 
     textarea {
       width: 100%;
-      height: 150px;
+      height: 90px;
       background: var(--input-bg);
       border: 1px solid var(--border);
       border-radius: 8px;
@@ -257,7 +298,7 @@
       padding: 10px;
       font-family: monospace;
       font-size: 0.75rem;
-      margin: 10px 0;
+      margin: 8px 0;
       resize: none;
     }
 
@@ -476,12 +517,20 @@
     </div>
   </div>
 
-  <!-- Backup/Restore Modal -->
+  <!-- Data Management & History Modal -->
   <div class="modal" id="backupModal">
     <div class="modal-content">
-      <h3 style="margin-top: 0;">Export / Import Data</h3>
-      <p style="font-size: 0.8rem; color: var(--text-muted);">Copy string to back up, or paste code to restore onto this device.</p>
-      <textarea id="dataBox"></textarea>
+      <h3 style="margin-top: 0; margin-bottom: 4px;">Data & Workout History</h3>
+      
+      <!-- Recent Logged Workouts History -->
+      <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">Recent Workout History:</label>
+      <div class="history-container" id="workoutHistoryList">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-top: 4px;">Backup / Import (JSON):</label>
+      <textarea id="dataBox" placeholder="Paste data backup string here..."></textarea>
+      
       <div style="display: flex; gap: 8px;">
         <button class="btn btn-secondary" onclick="exportData()">Copy Export</button>
         <button class="btn" onclick="importData()">Import Paste</button>
@@ -511,7 +560,7 @@
     /* Service Worker Inline Registration */
     if ('serviceWorker' in navigator) {
       const swCode = `
-        const CACHE_NAME = 'gotti-tracker-v3';
+        const CACHE_NAME = 'gotti-tracker-v4';
         const ASSETS = ['./', 'https://cdn.jsdelivr.net/npm/chart.js'];
         self.addEventListener('install', (e) => {
           e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(ASSETS)));
@@ -566,12 +615,12 @@
 
     /* Color Palette for Multi-Set Lines */
     const SET_COLORS = [
-      { border: '#ef4444', bg: 'rgba(239, 68, 68, 0.2)' },  // Set 1: Red
-      { border: '#3b82f6', bg: 'rgba(59, 130, 246, 0.2)' },  // Set 2: Blue
-      { border: '#10b981', bg: 'rgba(16, 185, 129, 0.2)' }, // Set 3: Green
-      { border: '#f59e0b', bg: 'rgba(245, 158, 11, 0.2)' }, // Set 4: Yellow
-      { border: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.2)' }, // Set 5: Purple
-      { border: '#ec4899', bg: 'rgba(236, 72, 153, 0.2)' }  // Set 6: Pink
+      { border: '#ef4444', bg: 'rgba(239, 68, 68, 0.2)' },  
+      { border: '#3b82f6', bg: 'rgba(59, 130, 246, 0.2)' },  
+      { border: '#10b981', bg: 'rgba(16, 185, 129, 0.2)' }, 
+      { border: '#f59e0b', bg: 'rgba(245, 158, 11, 0.2)' }, 
+      { border: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.2)' }, 
+      { border: '#ec4899', bg: 'rgba(236, 72, 153, 0.2)' }  
     ];
 
     /* Rest Timer Controller */
@@ -767,7 +816,6 @@
       const cutoff = new Date();
       cutoff.setDate(now.getDate() - 60);
 
-      // Find exercise definition to know total target sets and reps
       let exConfig = null;
       Object.keys(ROUTINE).forEach(tab => {
         const found = ROUTINE[tab].find(e => e.id === exId);
@@ -777,7 +825,6 @@
       const numSets = exConfig ? exConfig.sets.length : 4;
       const dates = [];
 
-      // Collect all logged dates in the last 60 days
       Object.keys(userData).sort().forEach(dateStr => {
         const d = new Date(dateStr);
         if (d >= cutoff && d <= now) {
@@ -790,7 +837,6 @@
         }
       });
 
-      // Prepare multi-line dataset (One line per set)
       const datasets = [];
       for (let sIdx = 0; sIdx < numSets; sIdx++) {
         const targetReps = exConfig && exConfig.sets[sIdx] ? exConfig.sets[sIdx] : `Set ${sIdx + 1}`;
@@ -861,25 +907,71 @@
     function saveCurrentWorkout() {
       const selectedDate = document.getElementById("logDate").value;
       if (!userData[selectedDate]) userData[selectedDate] = {};
-      if (!userData[selectedDate][activeTab]) userData[selectedDate][activeTab] = {};
 
       const exercises = ROUTINE[activeTab];
+      let hasData = false;
+      const workoutLogs = {};
 
       exercises.forEach(ex => {
-        userData[selectedDate][activeTab][ex.id] = ex.sets.map((_, idx) => {
+        const setLogs = ex.sets.map((_, idx) => {
           const w = document.getElementById(`${ex.id}_w_${idx}`).value;
           const r = document.getElementById(`${ex.id}_r_${idx}`).value;
+          if (w !== '' || r !== '') hasData = true;
           return { weight: w !== '' ? parseFloat(w) : '', reps: r !== '' ? parseInt(r) : '' };
         });
+        workoutLogs[ex.id] = setLogs;
       });
+
+      if (hasData) {
+        userData[selectedDate][activeTab] = workoutLogs;
+      }
 
       localStorage.setItem("gotti_workout_logs_v2", JSON.stringify(userData));
       alert(`Saved ${activeTab} for ${selectedDate}!`);
     }
 
     function openBackup() {
+      renderWorkoutHistory();
       document.getElementById("dataBox").value = JSON.stringify(userData);
       document.getElementById("backupModal").style.display = "flex";
+    }
+
+    function renderWorkoutHistory() {
+      const container = document.getElementById("workoutHistoryList");
+      const sortedDates = Object.keys(userData).sort().reverse();
+
+      if (sortedDates.length === 0) {
+        container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.75rem; text-align: center; padding: 10px;">No workout history logged yet.</div>`;
+        return;
+      }
+
+      const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+      container.innerHTML = sortedDates.map(dateStr => {
+        const dateObj = new Date(dateStr + 'T00:00:00');
+        const dayName = daysOfWeek[dateObj.getDay()];
+        const dayLogs = userData[dateStr] || {};
+        
+        // Find which workouts have actual logged data for this date
+        const completedWorkouts = Object.keys(dayLogs).filter(tabKey => {
+          const tabObj = dayLogs[tabKey];
+          return Object.keys(tabObj).some(exId => {
+            const setsArr = tabObj[exId];
+            return Array.isArray(setsArr) && setsArr.some(s => s.weight !== '' || s.reps !== '');
+          });
+        });
+
+        if (completedWorkouts.length === 0) return '';
+
+        return `
+          <div class="history-item">
+            <span class="history-date">${dateStr} (${dayName})</span>
+            <div>
+              ${completedWorkouts.map(w => `<span class="history-tag">${w}</span>`).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
     }
 
     function closeBackup() {
@@ -901,6 +993,7 @@
           userData = parsed;
           localStorage.setItem("gotti_workout_logs_v2", JSON.stringify(userData));
           renderWorkout(activeTab);
+          renderWorkoutHistory();
           alert("Import successful!");
           closeBackup();
         }
