@@ -15,7 +15,7 @@
   <!-- Apple Touch Icon -->
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2309090b'/><path d='M30 35h40v6H30zm0 12h40v6H30zm0 12h40v6H30z' fill='%23ef4444'/></svg>">
 
-  <!-- Chart.js for inline hypertrophy graphs -->
+  <!-- Chart.js for multi-set progress graphs -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
@@ -28,6 +28,8 @@
       --text: #f4f4f5;
       --text-muted: #a1a1aa;
       --input-bg: #27272a;
+      --rt-accent: #0a84ff;
+      --rt-danger: #ff453a;
     }
 
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -57,29 +59,24 @@
 
     h1 { font-size: 1.05rem; margin: 0; font-weight: 700; color: var(--text); }
     
-    .timer-bar {
+    .timer-trigger-bar {
       background: #121215;
       border-bottom: 1px solid var(--border);
-      padding: 8px 16px;
+      padding: 10px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
-    .timer-display {
-      font-family: monospace;
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: var(--accent);
-    }
-    .timer-btns { display: flex; gap: 6px; }
-    .timer-btn {
-      background: var(--input-bg);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 0.75rem;
+
+    .timer-trigger-btn {
+      background: var(--rt-accent);
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
       font-weight: 600;
+      cursor: pointer;
     }
 
     .date-bar {
@@ -91,6 +88,7 @@
       justify-content: space-between;
       font-size: 0.85rem;
     }
+    
     .date-input {
       background: var(--input-bg);
       border: 1px solid var(--border);
@@ -157,13 +155,14 @@
       font-size: 0.7rem;
       padding: 4px 8px;
       border-radius: 6px;
+      cursor: pointer;
     }
 
     .chart-container {
       display: none;
       margin-top: 12px;
       margin-bottom: 12px;
-      height: 160px;
+      height: 220px;
       position: relative;
     }
 
@@ -227,6 +226,7 @@
       margin: 0 auto;
     }
 
+    /* Modal Styling */
     .modal {
       display: none;
       position: fixed;
@@ -260,6 +260,155 @@
       margin: 10px 0;
       resize: none;
     }
+
+    /* Mobile Rest Timer Bottom Sheet Overlay */
+    .rt-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 9999;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.25s ease, visibility 0.25s ease;
+    }
+
+    .rt-modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .rt-modal-card {
+      width: 100%;
+      max-width: 500px;
+      background-color: #121215;
+      border: 1px solid var(--border);
+      border-top-left-radius: 24px;
+      border-top-right-radius: 24px;
+      padding: 20px 20px calc(env(safe-area-inset-bottom) + 24px) 20px;
+      box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.6);
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .rt-modal-overlay.active .rt-modal-card {
+      transform: translateY(0);
+    }
+
+    .rt-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .rt-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+    }
+
+    .rt-close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 28px;
+      line-height: 1;
+      padding: 4px 12px;
+      cursor: pointer;
+    }
+
+    .rt-display-container {
+      text-align: center;
+      margin: 8px 0 16px 0;
+    }
+
+    .rt-time-text {
+      font-size: 64px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .rt-progress-bar {
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      margin-top: 14px;
+      overflow: hidden;
+    }
+
+    .rt-progress-fill {
+      height: 100%;
+      width: 100%;
+      background: var(--rt-accent);
+      transition: width 0.2s linear;
+    }
+
+    .rt-preset-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .rt-quick-set-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .rt-action-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 10px;
+    }
+
+    .rt-btn {
+      min-height: 48px;
+      border-radius: 12px;
+      border: none;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .rt-btn:active, .rt-chip:active {
+      transform: scale(0.97);
+    }
+
+    .rt-btn-primary { background-color: var(--rt-accent); color: #ffffff; }
+    .rt-btn-secondary { background-color: var(--input-bg); color: var(--text); font-size: 0.9rem; }
+    .rt-btn-danger { background-color: rgba(255, 69, 58, 0.15); color: var(--rt-danger); }
+
+    .rt-chip {
+      min-height: 36px;
+      border-radius: 18px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    @media (min-width: 600px) {
+      .rt-modal-overlay { align-items: center; }
+      .rt-modal-card { border-radius: 24px; transform: translateY(20px); }
+    }
   </style>
 </head>
 <body>
@@ -269,15 +418,12 @@
     <button class="btn btn-secondary" style="width: auto; padding: 6px 12px;" onclick="openBackup()">Data</button>
   </header>
 
-  <!-- Rest Timer Header -->
-  <div class="timer-bar">
-    <div style="font-size: 0.75rem; color: var(--text-muted);">Rest Timer: <span class="timer-display" id="timerDisplay">00:00</span></div>
-    <div class="timer-btns">
-      <button class="timer-btn" onclick="startTimer(60)">+60s</button>
-      <button class="timer-btn" onclick="startTimer(90)">+90s</button>
-      <button class="timer-btn" onclick="startTimer(120)">+120s</button>
-      <button class="timer-btn" onclick="stopTimer()" style="color: var(--accent);">Stop</button>
+  <!-- Rest Timer Header Bar -->
+  <div class="timer-trigger-bar">
+    <div style="font-size: 0.8rem; color: var(--text-muted);">
+      Timer Status: <span id="headerTimerStatus" style="color: var(--rt-accent); font-weight: 700;">Idle</span>
     </div>
+    <button class="timer-trigger-btn" onclick="RestTimer.open(90)">⏱️ Open Timer</button>
   </div>
 
   <!-- Date Selector -->
@@ -292,6 +438,42 @@
 
   <div class="bottom-bar">
     <button class="btn" onclick="saveCurrentWorkout()">Save Workout</button>
+  </div>
+
+  <!-- Mobile Rest Timer Modal Popup -->
+  <div id="rest-timer-modal" class="rt-modal-overlay" aria-hidden="true">
+    <div class="rt-modal-card">
+      <div class="rt-modal-header">
+        <span class="rt-title">REST TIMER</span>
+        <button class="rt-close-btn" onclick="RestTimer.close()">&times;</button>
+      </div>
+
+      <div class="rt-display-container">
+        <div id="rt-time-display" class="rt-time-text">01:30</div>
+        <div class="rt-progress-bar">
+          <div id="rt-progress-fill" class="rt-progress-fill"></div>
+        </div>
+      </div>
+
+      <div class="rt-preset-grid">
+        <button class="rt-btn rt-btn-secondary" onclick="RestTimer.addSeconds(-15)">-15s</button>
+        <button class="rt-btn rt-btn-secondary" onclick="RestTimer.addSeconds(15)">+15s</button>
+        <button class="rt-btn rt-btn-secondary" onclick="RestTimer.addSeconds(30)">+30s</button>
+        <button class="rt-btn rt-btn-secondary" onclick="RestTimer.addSeconds(60)">+60s</button>
+      </div>
+
+      <div class="rt-quick-set-row">
+        <button class="rt-chip" onclick="RestTimer.setDuration(60)">60s</button>
+        <button class="rt-chip" onclick="RestTimer.setDuration(90)">90s</button>
+        <button class="rt-chip" onclick="RestTimer.setDuration(120)">2m</button>
+        <button class="rt-chip" onclick="RestTimer.setDuration(180)">3m</button>
+      </div>
+
+      <div class="rt-action-row">
+        <button id="rt-toggle-btn" class="rt-btn rt-btn-primary" onclick="RestTimer.toggle()">PAUSE</button>
+        <button class="rt-btn rt-btn-danger" onclick="RestTimer.stop()">SKIP</button>
+      </div>
+    </div>
   </div>
 
   <!-- Backup/Restore Modal -->
@@ -326,35 +508,22 @@
     const blob = new Blob([JSON.stringify(manifestJson)], {type: 'application/json'});
     document.getElementById('manifestLink').href = URL.createObjectURL(blob);
 
-    /* Service Worker Inline Registration for Offline Support */
+    /* Service Worker Inline Registration */
     if ('serviceWorker' in navigator) {
       const swCode = `
-        const CACHE_NAME = 'gotti-tracker-v1';
-        const ASSETS = [
-          './',
-          'https://cdn.jsdelivr.net/npm/chart.js'
-        ];
-
+        const CACHE_NAME = 'gotti-tracker-v3';
+        const ASSETS = ['./', 'https://cdn.jsdelivr.net/npm/chart.js'];
         self.addEventListener('install', (e) => {
-          e.waitUntil(
-            caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
-          );
+          e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(ASSETS)));
           self.skipWaiting();
         });
-
-        self.addEventListener('activate', (e) => {
-          e.waitUntil(clients.claim());
-        });
-
+        self.addEventListener('activate', (e) => e.waitUntil(clients.claim()));
         self.addEventListener('fetch', (e) => {
-          e.respondWith(
-            caches.match(e.request).then((res) => res || fetch(e.request).catch(() => caches.match('./')))
-          );
+          e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request).catch(() => caches.match('./'))));
         });
       `;
       const swBlob = new Blob([swCode], {type: 'application/javascript'});
-      navigator.serviceWorker.register(URL.createObjectURL(swBlob))
-        .catch(err => console.log('SW registration skipped:', err));
+      navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(err => console.log('SW setup skipped:', err));
     }
 
     const ROUTINE = {
@@ -394,8 +563,127 @@
     let activeTab = "Upper A";
     let userData = JSON.parse(localStorage.getItem("gotti_workout_logs_v2")) || {};
     let chartInstances = {};
-    let timerInterval = null;
-    let timerTimeLeft = 0;
+
+    /* Color Palette for Multi-Set Lines */
+    const SET_COLORS = [
+      { border: '#ef4444', bg: 'rgba(239, 68, 68, 0.2)' },  // Set 1: Red
+      { border: '#3b82f6', bg: 'rgba(59, 130, 246, 0.2)' },  // Set 2: Blue
+      { border: '#10b981', bg: 'rgba(16, 185, 129, 0.2)' }, // Set 3: Green
+      { border: '#f59e0b', bg: 'rgba(245, 158, 11, 0.2)' }, // Set 4: Yellow
+      { border: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.2)' }, // Set 5: Purple
+      { border: '#ec4899', bg: 'rgba(236, 72, 153, 0.2)' }  // Set 6: Pink
+    ];
+
+    /* Rest Timer Controller */
+    const RestTimer = (() => {
+      let totalDuration = 90;
+      let remainingSeconds = 90;
+      let timerInterval = null;
+      let isPaused = false;
+
+      function formatTime(sec) {
+        const mins = Math.floor(sec / 60);
+        const secs = sec % 60;
+        return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      }
+
+      function updateDisplay() {
+        const displayEl = document.getElementById('rt-time-display');
+        const progressFillEl = document.getElementById('rt-progress-fill');
+        const statusEl = document.getElementById('headerTimerStatus');
+
+        if (displayEl) displayEl.textContent = formatTime(remainingSeconds);
+        if (statusEl) statusEl.textContent = remainingSeconds > 0 ? formatTime(remainingSeconds) : 'Idle';
+
+        if (progressFillEl) {
+          const progressPercent = totalDuration > 0 ? (remainingSeconds / totalDuration) * 100 : 0;
+          progressFillEl.style.width = `${progressPercent}%`;
+        }
+      }
+
+      function tick() {
+        if (remainingSeconds > 0) {
+          remainingSeconds--;
+          updateDisplay();
+        } else {
+          stop();
+          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+          alert("Rest interval complete!");
+        }
+      }
+
+      function open(durationInSeconds = 90) {
+        const modalEl = document.getElementById('rest-timer-modal');
+        if (remainingSeconds === 0 || durationInSeconds !== totalDuration) {
+          setDuration(durationInSeconds);
+        }
+        if (modalEl) {
+          modalEl.classList.add('active');
+          modalEl.setAttribute('aria-hidden', 'false');
+        }
+        if (!timerInterval && !isPaused) start();
+      }
+
+      function close() {
+        const modalEl = document.getElementById('rest-timer-modal');
+        if (modalEl) {
+          modalEl.classList.remove('active');
+          modalEl.setAttribute('aria-hidden', 'true');
+        }
+      }
+
+      function start() {
+        clearInterval(timerInterval);
+        isPaused = false;
+        const toggleBtnEl = document.getElementById('rt-toggle-btn');
+        if (toggleBtnEl) {
+          toggleBtnEl.textContent = 'PAUSE';
+          toggleBtnEl.classList.remove('rt-btn-secondary');
+          toggleBtnEl.classList.add('rt-btn-primary');
+        }
+        timerInterval = setInterval(tick, 1000);
+      }
+
+      function toggle() {
+        const toggleBtnEl = document.getElementById('rt-toggle-btn');
+        if (isPaused) {
+          start();
+        } else {
+          clearInterval(timerInterval);
+          timerInterval = null;
+          isPaused = true;
+          if (toggleBtnEl) {
+            toggleBtnEl.textContent = 'RESUME';
+            toggleBtnEl.classList.remove('rt-btn-primary');
+            toggleBtnEl.classList.add('rt-btn-secondary');
+          }
+        }
+      }
+
+      function stop() {
+        clearInterval(timerInterval);
+        timerInterval = null;
+        remainingSeconds = 0;
+        isPaused = false;
+        updateDisplay();
+        close();
+      }
+
+      function setDuration(seconds) {
+        totalDuration = seconds;
+        remainingSeconds = seconds;
+        updateDisplay();
+        if (timerInterval && !isPaused) start();
+      }
+
+      function addSeconds(seconds) {
+        remainingSeconds = Math.max(0, remainingSeconds + seconds);
+        totalDuration = Math.max(totalDuration, remainingSeconds);
+        updateDisplay();
+      }
+
+      return { open, close, toggle, stop, setDuration, addSeconds };
+    })();
 
     function init() {
       document.getElementById("logDate").value = getTodayString();
@@ -409,33 +697,6 @@
 
     function onDateChange() {
       renderWorkout(activeTab);
-    }
-
-    function startTimer(seconds) {
-      clearInterval(timerInterval);
-      timerTimeLeft = seconds;
-      updateTimerDisplay();
-      timerInterval = setInterval(() => {
-        timerTimeLeft--;
-        updateTimerDisplay();
-        if (timerTimeLeft <= 0) {
-          clearInterval(timerInterval);
-          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-          alert("Rest time complete!");
-        }
-      }, 1000);
-    }
-
-    function stopTimer() {
-      clearInterval(timerInterval);
-      timerTimeLeft = 0;
-      updateTimerDisplay();
-    }
-
-    function updateTimerDisplay() {
-      const m = Math.floor(timerTimeLeft / 60).toString().padStart(2, '0');
-      const s = (timerTimeLeft % 60).toString().padStart(2, '0');
-      document.getElementById("timerDisplay").innerText = `${m}:${s}`;
     }
 
     function renderTabs() {
@@ -502,34 +763,64 @@
     function renderChart(exId) {
       const canvas = document.getElementById(`canvas_${exId}`);
       const ctx = canvas.getContext('2d');
-      
       const now = new Date();
       const cutoff = new Date();
       cutoff.setDate(now.getDate() - 60);
 
-      const labels = [];
-      const weightData = [];
+      // Find exercise definition to know total target sets and reps
+      let exConfig = null;
+      Object.keys(ROUTINE).forEach(tab => {
+        const found = ROUTINE[tab].find(e => e.id === exId);
+        if (found) exConfig = found;
+      });
 
+      const numSets = exConfig ? exConfig.sets.length : 4;
+      const dates = [];
+
+      // Collect all logged dates in the last 60 days
       Object.keys(userData).sort().forEach(dateStr => {
         const d = new Date(dateStr);
         if (d >= cutoff && d <= now) {
           const dayLogs = userData[dateStr];
-          let maxW = 0;
+          let hasEx = false;
           Object.keys(dayLogs).forEach(tab => {
-            if (dayLogs[tab][exId]) {
-              dayLogs[tab][exId].forEach(s => {
-                if (s.weight && parseFloat(s.weight) > maxW) {
-                  maxW = parseFloat(s.weight);
-                }
-              });
-            }
+            if (dayLogs[tab][exId]) hasEx = true;
           });
-          if (maxW > 0) {
-            labels.push(dateStr.slice(5));
-            weightData.push(maxW);
-          }
+          if (hasEx) dates.push(dateStr);
         }
       });
+
+      // Prepare multi-line dataset (One line per set)
+      const datasets = [];
+      for (let sIdx = 0; sIdx < numSets; sIdx++) {
+        const targetReps = exConfig && exConfig.sets[sIdx] ? exConfig.sets[sIdx] : `Set ${sIdx + 1}`;
+        const color = SET_COLORS[sIdx % SET_COLORS.length];
+        
+        const setWeights = dates.map(dateStr => {
+          const dayLogs = userData[dateStr];
+          let weightVal = null;
+          Object.keys(dayLogs).forEach(tab => {
+            if (dayLogs[tab][exId] && dayLogs[tab][exId][sIdx]) {
+              const setObj = dayLogs[tab][exId][sIdx];
+              if (setObj.weight !== "" && setObj.weight !== null && setObj.weight !== undefined) {
+                weightVal = parseFloat(setObj.weight);
+              }
+            }
+          });
+          return weightVal;
+        });
+
+        datasets.push({
+          label: `Set ${sIdx + 1} (${targetReps} reps)`,
+          data: setWeights,
+          borderColor: color.border,
+          backgroundColor: color.bg,
+          borderWidth: 2,
+          pointRadius: 3,
+          spanGaps: true,
+          tension: 0.2
+        });
+      }
 
       if (chartInstances[exId]) {
         chartInstances[exId].destroy();
@@ -538,23 +829,30 @@
       chartInstances[exId] = new Chart(ctx, {
         type: 'line',
         data: {
-          labels: labels.length ? labels : ['No Data'],
-          datasets: [{
-            label: 'Max Weight (60 Days)',
-            data: weightData.length ? weightData : [0],
-            borderColor: '#ef4444',
-            backgroundColor: 'rgba(239, 68, 68, 0.15)',
-            fill: true,
-            tension: 0.3
-          }]
+          labels: dates.length ? dates.map(d => d.slice(5)) : ['No Data'],
+          datasets: dates.length ? datasets : []
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              labels: { color: '#a1a1aa', font: { size: 10 }, boxWidth: 10, padding: 8 }
+            },
+            tooltip: {
+              callbacks: {
+                label: (context) => `${context.dataset.label}: ${context.raw !== null ? context.raw + ' kg/lb' : 'N/A'}`
+              }
+            }
+          },
           scales: {
             x: { ticks: { color: '#a1a1aa', font: { size: 9 } } },
-            y: { ticks: { color: '#a1a1aa', font: { size: 9 } } }
+            y: {
+              ticks: { color: '#a1a1aa', font: { size: 9 } },
+              title: { display: true, text: 'Weight (kg/lb)', color: '#a1a1aa', font: { size: 10 } }
+            }
           }
         }
       });
