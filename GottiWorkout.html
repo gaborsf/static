@@ -202,6 +202,10 @@
       font-size: 0.85rem;
       cursor: pointer;
       width: 100%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
     }
 
     .btn-secondary {
@@ -286,20 +290,6 @@
       font-weight: 600;
       font-size: 0.75rem;
       margin-left: 4px;
-    }
-
-    textarea {
-      width: 100%;
-      height: 90px;
-      background: var(--input-bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      padding: 10px;
-      font-family: monospace;
-      font-size: 0.75rem;
-      margin: 8px 0;
-      resize: none;
     }
 
     /* Mobile Rest Timer Bottom Sheet Overlay */
@@ -528,14 +518,17 @@
         <!-- Rendered dynamically -->
       </div>
 
-      <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-top: 4px;">Backup / Import (JSON):</label>
-      <textarea id="dataBox" placeholder="Paste data backup string here..."></textarea>
+      <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-top: 6px; margin-bottom: 6px;">Backup / Restore (JSON File):</label>
       
+      <!-- Hidden File Input for Native Selector -->
+      <input type="file" id="importFileInput" accept=".json,application/json" style="display: none;" onchange="handleFileImport(event)">
+
       <div style="display: flex; gap: 8px;">
-        <button class="btn btn-secondary" onclick="exportData()">Copy Export</button>
-        <button class="btn" onclick="importData()">Import Paste</button>
+        <button class="btn btn-secondary" onclick="exportDataFile()">Export Backup File</button>
+        <button class="btn" onclick="triggerFileImport()">Import Backup File</button>
       </div>
-      <button class="btn btn-secondary" style="margin-top: 8px;" onclick="closeBackup()">Close</button>
+
+      <button class="btn btn-secondary" style="margin-top: 12px;" onclick="closeBackup()">Close</button>
     </div>
   </div>
 
@@ -560,7 +553,7 @@
     /* Service Worker Inline Registration */
     if ('serviceWorker' in navigator) {
       const swCode = `
-        const CACHE_NAME = 'gotti-tracker-v4';
+        const CACHE_NAME = 'gotti-tracker-v6';
         const ASSETS = ['./', 'https://cdn.jsdelivr.net/npm/chart.js'];
         self.addEventListener('install', (e) => {
           e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(ASSETS)));
@@ -932,7 +925,6 @@
 
     function openBackup() {
       renderWorkoutHistory();
-      document.getElementById("dataBox").value = JSON.stringify(userData);
       document.getElementById("backupModal").style.display = "flex";
     }
 
@@ -952,7 +944,6 @@
         const dayName = daysOfWeek[dateObj.getDay()];
         const dayLogs = userData[dateStr] || {};
         
-        // Find which workouts have actual logged data for this date
         const completedWorkouts = Object.keys(dayLogs).filter(tabKey => {
           const tabObj = dayLogs[tabKey];
           return Object.keys(tabObj).some(exId => {
@@ -978,28 +969,48 @@
       document.getElementById("backupModal").style.display = "none";
     }
 
-    function exportData() {
-      const box = document.getElementById("dataBox");
-      box.select();
-      navigator.clipboard.writeText(box.value);
-      alert("Data copied to clipboard!");
+    /* Direct File Export Helper */
+    function exportDataFile() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(userData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", "Gotti_Workout_Backup.json");
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
     }
 
-    function importData() {
-      const box = document.getElementById("dataBox");
-      try {
-        const parsed = JSON.parse(box.value);
-        if (typeof parsed === 'object') {
-          userData = parsed;
-          localStorage.setItem("gotti_workout_logs_v2", JSON.stringify(userData));
-          renderWorkout(activeTab);
-          renderWorkoutHistory();
-          alert("Import successful!");
-          closeBackup();
+    /* Native File Selector Trigger */
+    function triggerFileImport() {
+      document.getElementById("importFileInput").click();
+    }
+
+    /* Handle JSON File Input Upload */
+    function handleFileImport(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (typeof parsed === 'object' && parsed !== null) {
+            userData = parsed;
+            localStorage.setItem("gotti_workout_logs_v2", JSON.stringify(userData));
+            renderWorkout(activeTab);
+            renderWorkoutHistory();
+            alert("Workout data imported successfully!");
+            closeBackup();
+          } else {
+            alert("Invalid data file format.");
+          }
+        } catch (err) {
+          alert("Error parsing JSON file. Please ensure it is a valid backup file.");
         }
-      } catch (e) {
-        alert("Invalid JSON data string.");
-      }
+      };
+      reader.readAsText(file);
+      // Reset input value to allow re-importing the same file if needed
+      event.target.value = '';
     }
 
     init();
