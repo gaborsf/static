@@ -230,7 +230,7 @@
       margin: 0 auto;
     }
 
-    /* Modal Styling */
+    /* Generic Modal Styling */
     .modal {
       display: none;
       position: fixed;
@@ -532,6 +532,20 @@
     </div>
   </div>
 
+  <!-- Weekly Backup Reminder Confirmation Modal -->
+  <div class="modal" id="reminderModal">
+    <div class="modal-content" style="text-align: center;">
+      <h3 style="margin-top: 0; margin-bottom: 8px;">Weekly Backup Reminder</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">
+        It has been over a week since your last JSON backup download. Would you like to download <strong>Gotti_Workout_Backup.json</strong> now?
+      </p>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-secondary" onclick="closeReminderModal()">Later</button>
+        <button class="btn" onclick="confirmReminderDownload()">Download Now</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     /* PWA Manifest Dynamic Generation */
     const manifestJson = {
@@ -553,7 +567,7 @@
     /* Service Worker Inline Registration */
     if ('serviceWorker' in navigator) {
       const swCode = `
-        const CACHE_NAME = 'gotti-tracker-v6';
+        const CACHE_NAME = 'gotti-tracker-v7';
         const ASSETS = ['./', 'https://cdn.jsdelivr.net/npm/chart.js'];
         self.addEventListener('install', (e) => {
           e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(ASSETS)));
@@ -731,6 +745,7 @@
       document.getElementById("logDate").value = getTodayString();
       renderTabs();
       renderWorkout(activeTab);
+      checkWeeklyBackupReminder();
     }
 
     function getTodayString() {
@@ -978,6 +993,9 @@
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
+
+      // Record last backup timestamp for weekly reminder logic
+      localStorage.setItem("gotti_last_backup_time", Date.now().toString());
     }
 
     /* Native File Selector Trigger */
@@ -1009,8 +1027,34 @@
         }
       };
       reader.readAsText(file);
-      // Reset input value to allow re-importing the same file if needed
       event.target.value = '';
+    }
+
+    /* Weekly Backup Reminder Logic */
+    function checkWeeklyBackupReminder() {
+      const lastBackupStr = localStorage.getItem("gotti_last_backup_time");
+      const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+      const now = Date.now();
+
+      if (!lastBackupStr) {
+        // Initialize timestamp on first load to prevent immediate popup
+        localStorage.setItem("gotti_last_backup_time", now.toString());
+        return;
+      }
+
+      const lastBackupTime = parseInt(lastBackupStr, 10);
+      if (now - lastBackupTime >= sevenDaysMs) {
+        document.getElementById("reminderModal").style.display = "flex";
+      }
+    }
+
+    function confirmReminderDownload() {
+      exportDataFile();
+      closeReminderModal();
+    }
+
+    function closeReminderModal() {
+      document.getElementById("reminderModal").style.display = "none";
     }
 
     init();
