@@ -20,12 +20,16 @@
       --muted: #94a3b8;
       --border: #334155;
       --success: #22c55e;
+      --danger: #ef4444;
+      --neutral-log: #64748b;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
     body { background-color: var(--bg); color: var(--text); padding-bottom: 110px; -webkit-tap-highlight-color: transparent; }
     header { position: sticky; top: 0; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px); padding: 12px 16px; border-bottom: 1px solid var(--border); z-index: 10; display: flex; justify-content: space-between; align-items: center; }
     h1 { font-size: 1.2rem; font-weight: 700; color: var(--accent); }
+    .header-btns { display: flex; gap: 8px; }
     .btn { background: var(--accent); color: #000; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
+    .btn-secondary { background: #334155; color: var(--text); border: 1px solid var(--border); padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
     .btn-save { background: var(--success); color: #fff; border: none; padding: 8px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
     .nav-tabs { display: flex; overflow-x: auto; background: var(--card); padding: 6px; border-bottom: 1px solid var(--border); gap: 6px; }
     .tab { flex: 1; text-align: center; padding: 8px 12px; font-size: 0.85rem; border-radius: 6px; background: transparent; color: var(--muted); border: none; font-weight: 600; white-space: nowrap; }
@@ -85,9 +89,31 @@
       top: 20px;
     }
 
+    /* Modal Styling */
     .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; justify-content: center; align-items: center; padding: 16px; }
-    .modal-content { background: var(--card); border-radius: 10px; padding: 16px; width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 12px; }
+    .modal-content { background: var(--card); border-radius: 10px; padding: 16px; width: 100%; max-width: 450px; display: flex; flex-direction: column; gap: 12px; max-height: 90vh; overflow-y: auto; }
     .modal textarea { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 6px; height: 80px; font-family: monospace; font-size: 0.75rem; }
+
+    /* Calendar Popup UI */
+    .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .cal-header h4 { font-size: 1rem; color: var(--text); }
+    .cal-nav-btn { background: #334155; color: var(--text); border: none; width: 28px; height: 28px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+    .cal-day-label { font-size: 0.7rem; color: var(--muted); font-weight: 600; padding: 4px 0; }
+    .cal-cell { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; min-height: 52px; padding: 4px 2px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; cursor: pointer; font-size: 0.75rem; position: relative; }
+    .cal-cell.empty { background: transparent; border-color: transparent; cursor: default; }
+    .cal-cell.today { border-color: var(--accent); }
+    .cal-date-num { font-weight: 600; margin-bottom: 2px; }
+    .cal-badge { font-size: 0.6rem; padding: 2px 3px; border-radius: 3px; font-weight: bold; width: 95%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; line-height: 1; margin-top: auto; }
+    
+    /* Performance Color Badges */
+    .bg-improved { background: var(--success); color: #000; }
+    .bg-same { background: var(--neutral-log); color: #fff; }
+    .bg-declined { background: var(--danger); color: #fff; }
+
+    .cal-legend { display: flex; gap: 10px; justify-content: center; font-size: 0.7rem; color: var(--muted); margin-top: 8px; }
+    .legend-item { display: flex; align-items: center; gap: 4px; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
   </style>
 </head>
 <body>
@@ -97,7 +123,10 @@
 
   <header>
     <h1>Workout App</h1>
-    <button class="btn" onclick="openModal()">Data Sync</button>
+    <div class="header-btns">
+      <button class="btn-secondary" onclick="openHistoryModal()">History</button>
+      <button class="btn" onclick="openModal()">Data Sync</button>
+    </div>
   </header>
 
   <nav class="nav-tabs" id="tabs"></nav>
@@ -127,6 +156,7 @@
     </div>
   </div>
 
+  <!-- Data Sync Modal -->
   <div class="modal" id="data-modal">
     <div class="modal-content">
       <h3>Import / Export Data</h3>
@@ -136,6 +166,35 @@
       <textarea id="import-text" placeholder="Or paste JSON code here..."></textarea>
       <button class="btn" onclick="importText()">Import Text</button>
       <button class="timer-btn" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+
+  <!-- Workout History Calendar Modal -->
+  <div class="modal" id="history-modal">
+    <div class="modal-content">
+      <div class="cal-header">
+        <button class="cal-nav-btn" onclick="changeCalMonth(-1)">&lt;</button>
+        <h4 id="cal-month-year"></h4>
+        <button class="cal-nav-btn" onclick="changeCalMonth(1)">&gt;</button>
+      </div>
+      <div class="cal-grid" id="cal-labels">
+        <div class="cal-day-label">Su</div>
+        <div class="cal-day-label">Mo</div>
+        <div class="cal-day-label">Tu</div>
+        <div class="cal-day-label">We</div>
+        <div class="cal-day-label">Th</div>
+        <div class="cal-day-label">Fr</div>
+        <div class="cal-day-label">Sa</div>
+      </div>
+      <div class="cal-grid" id="cal-days"></div>
+      
+      <div class="cal-legend">
+        <span class="legend-item"><span class="legend-dot" style="background:var(--success)"></span> Improved</span>
+        <span class="legend-item"><span class="legend-dot" style="background:var(--neutral-log)"></span> Same</span>
+        <span class="legend-item"><span class="legend-dot" style="background:var(--danger)"></span> Lower</span>
+      </div>
+
+      <button class="timer-btn" style="margin-top:10px;" onclick="closeHistoryModal()">Close</button>
     </div>
   </div>
 
@@ -178,6 +237,7 @@
     let store = JSON.parse(localStorage.getItem('workout_data') || '{}');
     let chartInstances = {};
     let toastTimeout = null;
+    let calCurrentDate = new Date();
 
     document.getElementById('workout-date').value = new Date().toISOString().split('T')[0];
     document.getElementById('workout-date').addEventListener('change', () => renderExercises());
@@ -428,6 +488,140 @@
       const reader = new FileReader();
       reader.onload = (evt) => processImportData(evt.target.result);
       reader.readAsText(file);
+    }
+
+    /* History & Calendar Modal Logic */
+    function openHistoryModal() {
+      document.getElementById('history-modal').style.display = 'flex';
+      renderCalendar();
+    }
+
+    function closeHistoryModal() {
+      document.getElementById('history-modal').style.display = 'none';
+    }
+
+    function changeCalMonth(delta) {
+      calCurrentDate.setMonth(calCurrentDate.getMonth() + delta);
+      renderCalendar();
+    }
+
+    function getRoutineNameForDate(dateStr) {
+      const dayData = store[dateStr];
+      if (!dayData) return null;
+      const keys = Object.keys(dayData);
+      if (keys.length === 0) return null;
+
+      for (const [rName, exList] of Object.entries(ROUTINE)) {
+        if (exList.some(ex => keys.includes(ex.id))) {
+          return rName;
+        }
+      }
+      return null;
+    }
+
+    function evaluateProgress(currentDateStr, routineName) {
+      const currentDayData = store[currentDateStr];
+      if (!currentDayData) return 'same';
+
+      // Find previous workout date for the same routine
+      const allDates = Object.keys(store).filter(d => d < currentDateStr).sort().reverse();
+      let prevDateStr = null;
+      for (let d of allDates) {
+        if (getRoutineNameForDate(d) === routineName) {
+          prevDateStr = d;
+          break;
+        }
+      }
+
+      if (!prevDateStr) return 'improved'; // First logged session for routine
+
+      const prevDayData = store[prevDateStr];
+      let improvements = 0;
+      let drops = 0;
+
+      const exList = ROUTINE[routineName];
+      exList.forEach(ex => {
+        const curSets = currentDayData[ex.id] || [];
+        const prevSets = prevDayData[ex.id] || [];
+
+        const maxLen = Math.max(curSets.length, prevSets.length);
+        for (let i = 0; i < maxLen; i++) {
+          const c = curSets[i] || {};
+          const p = prevSets[i] || {};
+
+          const cW = typeof c === 'number' ? c : (c.weight || 0);
+          const cR = c.reps || 0;
+          const pW = typeof p === 'number' ? p : (p.weight || 0);
+          const pR = p.reps || 0;
+
+          if (cW > pW || (cW === pW && cR > pR && cR > 0)) {
+            improvements++;
+          } else if (cW < pW || (cW === pW && cR < pR && pR > 0)) {
+            drops++;
+          }
+        }
+      });
+
+      if (improvements > drops) return 'improved';
+      if (drops > improvements) return 'declined';
+      return 'same';
+    }
+
+    function selectDateFromCal(dateStr) {
+      document.getElementById('workout-date').value = dateStr;
+      const rName = getRoutineNameForDate(dateStr);
+      if (rName) {
+        activeRoutine = rName;
+        initTabs();
+      }
+      renderExercises();
+      closeHistoryModal();
+    }
+
+    function renderCalendar() {
+      const year = calCurrentDate.getFullYear();
+      const month = calCurrentDate.getMonth();
+
+      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      document.getElementById('cal-month-year').innerText = `${monthNames[month]} ${year}`;
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      const container = document.getElementById('cal-days');
+      container.innerHTML = '';
+
+      // Blank padded cells for initial month offset
+      for (let i = 0; i < firstDay; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'cal-cell empty';
+        container.appendChild(cell);
+      }
+
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const cell = document.createElement('div');
+        cell.className = `cal-cell ${dStr === todayStr ? 'today' : ''}`;
+        cell.onclick = () => selectDateFromCal(dStr);
+
+        let dateNum = document.createElement('span');
+        dateNum.className = 'cal-date-num';
+        dateNum.innerText = day;
+        cell.appendChild(dateNum);
+
+        const rName = getRoutineNameForDate(dStr);
+        if (rName) {
+          const status = evaluateProgress(dStr, rName);
+          const badge = document.createElement('div');
+          badge.className = `cal-badge bg-${status}`;
+          badge.innerText = rName;
+          cell.appendChild(badge);
+        }
+
+        container.appendChild(cell);
+      }
     }
 
     // App Initialization
