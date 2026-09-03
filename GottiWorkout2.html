@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Workout Tracker</title>
+  
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Workout Tracker">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --accent: #38bdf8;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --border: #334155;
+      --success: #22c55e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding-bottom: 110px; -webkit-tap-highlight-color: transparent; }
+    header { position: sticky; top: 0; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px); padding: 12px 16px; border-bottom: 1px solid var(--border); z-index: 10; display: flex; justify-content: space-between; align-items: center; }
+    h1 { font-size: 1.2rem; font-weight: 700; color: var(--accent); }
+    .btn { background: var(--accent); color: #000; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
+    .btn-save { background: var(--success); color: #fff; border: none; padding: 8px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
+    .nav-tabs { display: flex; overflow-x: auto; background: var(--card); padding: 6px; border-bottom: 1px solid var(--border); gap: 6px; }
+    .tab { flex: 1; text-align: center; padding: 8px 12px; font-size: 0.85rem; border-radius: 6px; background: transparent; color: var(--muted); border: none; font-weight: 600; white-space: nowrap; }
+    .tab.active { background: var(--accent); color: #000; }
+    .container { padding: 16px; max-width: 600px; margin: 0 auto; }
+    .date-picker { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; background: var(--card); padding: 10px; border-radius: 8px; }
+    .date-picker label { font-size: 0.85rem; color: var(--muted); }
+    .date-picker input { background: transparent; border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 4px; font-size: 0.9rem; }
+    .exercise-card { background: var(--card); border-radius: 10px; padding: 14px; margin-bottom: 16px; border: 1px solid var(--border); }
+    .ex-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+    .ex-name { font-size: 1rem; font-weight: 600; }
+    .ex-meta { font-size: 0.75rem; color: var(--accent); margin-bottom: 4px; }
+    .ex-notes { font-size: 0.75rem; color: var(--muted); margin-bottom: 12px; }
+    .sets-grid { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+    .set-row { display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.2); padding: 8px 10px; border-radius: 6px; flex-wrap: wrap; gap: 6px; }
+    .set-label { font-size: 0.8rem; color: var(--muted); width: 80px; }
+    .last-log { font-size: 0.72rem; color: #38bdf8; font-style: italic; margin-right: auto; }
+    .inputs-wrap { display: flex; align-items: center; gap: 6px; }
+    .set-input { width: 55px; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 6px; border-radius: 4px; text-align: center; font-size: 0.85rem; }
+    .unit-label { font-size: 0.75rem; color: var(--muted); }
+    
+    /* Collapsed Details Chart Styling */
+    details { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px; }
+    summary { font-size: 0.8rem; color: var(--accent); cursor: pointer; font-weight: 600; outline: none; }
+    .chart-container { height: 150px; width: 100%; margin-top: 10px; }
+    
+    /* Sticky Footer Controls */
+    .sticky-timer { position: fixed; bottom: 0; left: 0; right: 0; background: #1e293b; border-top: 1px solid var(--border); padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 -4px 10px rgba(0,0,0,0.3); z-index: 100; }
+    .timer-top-row { display: flex; justify-content: space-between; align-items: center; }
+    .timer-display { font-size: 1.2rem; font-family: monospace; font-weight: bold; color: var(--text); }
+    .timer-controls { display: flex; gap: 6px; align-items: center; }
+    .preset-btn { background: #334155; color: var(--accent); border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
+    .timer-btn { background: #334155; color: var(--text); border: none; padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+    
+    /* Slide-in Toast Banner */
+    .toast {
+      position: fixed;
+      top: -60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--card);
+      border: 1px solid var(--accent);
+      color: var(--text);
+      padding: 10px 20px;
+      border-radius: 30px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      z-index: 300;
+      transition: top 0.3s ease-in-out;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .toast.show {
+      top: 20px;
+    }
+
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; justify-content: center; align-items: center; padding: 16px; }
+    .modal-content { background: var(--card); border-radius: 10px; padding: 16px; width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 12px; }
+    .modal textarea { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 6px; height: 80px; font-family: monospace; font-size: 0.75rem; }
+  </style>
+</head>
+<body>
+
+  <!-- Slide-in Toast Container -->
+  <div id="toast" class="toast"></div>
+
+  <header>
+    <h1>Workout App</h1>
+    <button class="btn" onclick="openModal()">Data Sync</button>
+  </header>
+
+  <nav class="nav-tabs" id="tabs"></nav>
+
+  <div class="container">
+    <div class="date-picker">
+      <label for="workout-date">Session Date:</label>
+      <input type="date" id="workout-date">
+    </div>
+    <div id="exercise-list"></div>
+  </div>
+
+  <div class="sticky-timer">
+    <div class="timer-top-row">
+      <div>
+        <span style="font-size:0.7rem; color:var(--muted); display:block; text-transform: uppercase; font-weight: 600;">Rest Countdown</span>
+        <span class="timer-display" id="timer">01:00</span>
+      </div>
+      <div class="timer-controls">
+        <button class="preset-btn" onclick="setTimerPreset(60)">1m</button>
+        <button class="preset-btn" onclick="setTimerPreset(120)">2m</button>
+        <button class="preset-btn" onclick="setTimerPreset(180)">3m</button>
+        <button class="timer-btn" onclick="toggleTimer()" id="timer-toggle">Start</button>
+        <button class="timer-btn" onclick="resetTimer()">Reset</button>
+        <button class="btn-save" onclick="saveStore(true)">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="data-modal">
+    <div class="modal-content">
+      <h3>Import / Export Data</h3>
+      <button class="btn" onclick="exportData()">Download Data (JSON)</button>
+      <hr style="border-color:var(--border)">
+      <input type="file" id="file-input" accept=".json" onchange="importFile(event)">
+      <textarea id="import-text" placeholder="Or paste JSON code here..."></textarea>
+      <button class="btn" onclick="importText()">Import Text</button>
+      <button class="timer-btn" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+
+  <script>
+    const ROUTINE = {
+      "Upper A": [
+        { id: "uA1", name: "Lat Pulldown (Narrow)", meta: "4 Sets: 6, 8, 10, 12", notes: "Reverse Pyramid (Heavy → Light). Stretch lats.", sets: [6,8,10,12] },
+        { id: "uA2", name: "T-Bar Row (Wide)", meta: "4 Sets: 8, 10, 12, 15", notes: "Reverse Pyramid. Targets upper back.", sets: [8,10,12,15] },
+        { id: "uA3", name: "Incline Smith Machine Press", meta: "4 Sets: 6, 8, 10, 12", notes: "Reverse Pyramid. Upper chest focus.", sets: [6,8,10,12] },
+        { id: "uA4", name: "Dumbbell Flyes", meta: "3 Sets: 8, 10, 12", notes: "Deep stretch on flat bench.", sets: [8,10,12] },
+        { id: "uA5", name: "DB Lateral Raises", meta: "6 Sets: 8 - 15 reps", notes: "Side delt focus (heavy to light).", sets: [8,10,12,12,15,15] },
+        { id: "uA6", name: "Rope Pushdowns", meta: "4 Sets: 15 down to 8", notes: "Standard Pyramid (Light → Heavy). Burnout.", sets: [15,12,10,8] },
+        { id: "uA7", name: "EZ-Bar Curls", meta: "4 Sets: 15 down to 8", notes: "Standard Pyramid (Light → Heavy).", sets: [15,12,10,8] }
+      ],
+      "Lower A": [
+        { id: "lA1", name: "Pendulum / Hack Squat", meta: "4 Sets: 20 down to 10", notes: "Quad focus. Narrow stance, deep ROM.", sets: [20,15,12,10] },
+        { id: "lA2", name: "Leg Extensions", meta: "3 Sets: 8, 10, 12", notes: "Reverse Pyramid isolation.", sets: [8,10,12] },
+        { id: "lA3", name: "Leg Curls", meta: "3 Sets: 8, 10, 12", notes: "Reverse Pyramid hamstrings.", sets: [8,10,12] },
+        { id: "lA4", name: "Calf Raises", meta: "4 Sets: 10 - 15 reps", notes: "Full stretch and peak contraction.", sets: [12,12,12,12] }
+      ],
+      "Upper B": [
+        { id: "uB1", name: "Wide Pull-Ups", meta: "2 Sets: Max (>= 8 reps)", notes: "Bodyweight or assisted.", sets: [8,8] },
+        { id: "uB2", name: "Seated Cable Row (Narrow)", meta: "4 Sets: 6, 8, 10, 12", notes: "Reverse Pyramid heavy compound.", sets: [6,8,10,12] },
+        { id: "uB3", name: "Reverse Butterfly", meta: "3 Sets: 10 - 15 reps", notes: "Rear delts and upper back.", sets: [12,12,12] },
+        { id: "uB4", name: "Flat DB Bench Press", meta: "4 Sets: 6, 8, 10, 12", notes: "Reverse Pyramid. 90 degree arm position.", sets: [6,8,10,12] },
+        { id: "uB5", name: "Cable Cross-overs", meta: "3 Sets: 8 - 12 reps", notes: "Peak squeeze focus.", sets: [10,10,10] },
+        { id: "uB6", name: "Cable Lateral Raises", meta: "4-6 Sets: 20 down to 8", notes: "High rep burnout.", sets: [20,15,12,10] },
+        { id: "uB7", name: "French Press", meta: "4 Sets: 15 down to 8", notes: "Overhead/stretched triceps head.", sets: [15,12,10,8] },
+        { id: "uB8", name: "Incline DB Curls", meta: "4 Sets: 15 down to 8", notes: "Arms behind body for stretch.", sets: [15,12,10,8] }
+      ],
+      "Lower B": [
+        { id: "lB1", name: "Walking DB Lunges", meta: "4-6 Laps / Sets", notes: "Hamstring/Glute focus. Long strides.", sets: [12,12,12,12] },
+        { id: "lB2", name: "Leg Extensions", meta: "3 Sets: 20 down to 10", notes: "High rep burnout.", sets: [20,15,10] },
+        { id: "lB3", name: "Leg Curls", meta: "3 Sets: 20 down to 10", notes: "High rep burnout.", sets: [20,15,10] },
+        { id: "lB4", name: "Calf Raises", meta: "4 Sets: 10 - 15 reps", notes: "Standard heavy calf work.", sets: [12,12,12,12] }
+      ]
+    };
+
+    let activeRoutine = "Upper A";
+    let store = JSON.parse(localStorage.getItem('workout_data') || '{}');
+    let chartInstances = {};
+    let toastTimeout = null;
+
+    document.getElementById('workout-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('workout-date').addEventListener('change', () => renderExercises());
+
+    /* Slide-in Notification Function */
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.innerText = message;
+      toast.classList.add('show');
+      
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    function saveStore(showNotification = false) {
+      localStorage.setItem('workout_data', JSON.stringify(store));
+      if (showNotification) showToast('Workout saved successfully!');
+    }
+
+    function initTabs() {
+      const container = document.getElementById('tabs');
+      container.innerHTML = '';
+      Object.keys(ROUTINE).forEach(name => {
+        const btn = document.createElement('button');
+        btn.className = `tab ${name === activeRoutine ? 'active' : ''}`;
+        btn.innerText = name;
+        btn.onclick = () => { activeRoutine = name; initTabs(); renderExercises(); };
+        container.appendChild(btn);
+      });
+    }
+
+    function handleSetChange(exId, setIdx, field, value) {
+      const date = document.getElementById('workout-date').value;
+      if (!store[date]) store[date] = {};
+      if (!store[date][exId]) store[date][exId] = [];
+      if (!store[date][exId][setIdx] || typeof store[date][exId][setIdx] !== 'object') {
+        store[date][exId][setIdx] = { weight: null, reps: null };
+      }
+      
+      store[date][exId][setIdx][field] = value !== "" ? parseFloat(value) : null;
+      saveStore();
+      renderChart(exId);
+    }
+
+    function getLastSetData(exId, setIdx, currentDate) {
+      const dates = Object.keys(store).filter(d => d < currentDate).sort().reverse();
+      for (let d of dates) {
+        if (store[d][exId] && store[d][exId][setIdx]) {
+          const entry = store[d][exId][setIdx];
+          if (typeof entry === 'number') return `${entry} lbs`;
+          if (entry && (entry.weight !== null || entry.reps !== null)) {
+            const w = entry.weight !== null ? `${entry.weight} lbs` : '';
+            const r = entry.reps !== null ? `${entry.reps} reps` : '';
+            return [w, r].filter(Boolean).join(' × ');
+          }
+        }
+      }
+      return null;
+    }
+
+    function renderExercises() {
+      const container = document.getElementById('exercise-list');
+      container.innerHTML = '';
+      const date = document.getElementById('workout-date').value;
+      
+      Object.values(chartInstances).forEach(chart => chart.destroy());
+      chartInstances = {};
+
+      ROUTINE[activeRoutine].forEach(ex => {
+        const card = document.createElement('div');
+        card.className = 'exercise-card';
+        
+        let setsHTML = '';
+        ex.sets.forEach((targetReps, idx) => {
+          const entry = (store[date] && store[date][ex.id] && store[date][ex.id][idx]) ? store[date][ex.id][idx] : {};
+          const weightVal = typeof entry === 'number' ? entry : (entry.weight ?? '');
+          const repsVal = entry.reps ?? '';
+          
+          const lastLog = getLastSetData(ex.id, idx, date);
+          const lastLogDisplay = lastLog ? `<span class="last-log">Prev: ${lastLog}</span>` : '';
+
+          setsHTML += `
+            <div class="set-row">
+              <span class="set-label">Set ${idx + 1} (${targetReps})</span>
+              ${lastLogDisplay}
+              <div class="inputs-wrap">
+                <input type="number" class="set-input" placeholder="lbs" value="${weightVal}" onchange="handleSetChange('${ex.id}', ${idx}, 'weight', this.value)">
+                <span class="unit-label">lbs</span>
+                <input type="number" class="set-input" placeholder="reps" value="${repsVal}" onchange="handleSetChange('${ex.id}', ${idx}, 'reps', this.value)">
+                <span class="unit-label">reps</span>
+              </div>
+            </div>`;
+        });
+
+        card.innerHTML = `
+          <div class="ex-header"><span class="ex-name">${ex.name}</span></div>
+          <div class="ex-meta">${ex.meta}</div>
+          <div class="ex-notes">${ex.notes}</div>
+          <div class="sets-grid">${setsHTML}</div>
+          <details id="details-${ex.id}">
+            <summary onclick="setTimeout(() => renderChart('${ex.id}'), 50)">Show 60-Day Progress</summary>
+            <div class="chart-container"><canvas id="chart-${ex.id}"></canvas></div>
+          </details>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function renderChart(exId) {
+      const ctx = document.getElementById(`chart-${exId}`);
+      if (!ctx) return;
+
+      const labels = [];
+      const dataPoints = [];
+      const now = new Date(document.getElementById('workout-date').value || Date.now());
+
+      for (let i = 59; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+        
+        if (store[dateStr] && store[dateStr][exId]) {
+          const weights = store[dateStr][exId]
+            .map(s => typeof s === 'number' ? s : s?.weight)
+            .filter(w => w !== null && w !== undefined && !isNaN(w));
+          if (weights.length > 0) {
+            labels.push(dateStr.slice(5));
+            dataPoints.push(Math.max(...weights));
+          }
+        }
+      }
+
+      if (chartInstances[exId]) chartInstances[exId].destroy();
+
+      chartInstances[exId] = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels.length ? labels : ['No Data'],
+          datasets: [{
+            label: 'Max Weight (lbs)',
+            data: dataPoints.length ? dataPoints : [0],
+            borderColor: '#38bdf8',
+            backgroundColor: 'rgba(56, 189, 248, 0.1)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#94a3b8', font: { size: 9 } }, grid: { display: false } },
+            y: { ticks: { color: '#94a3b8', font: { size: 9 } }, grid: { color: '#334155' } }
+          }
+        }
+      });
+    }
+
+    /* Countdown Timer Logic */
+    let timerInterval = null;
+    let totalSeconds = 60;
+    let initialPreset = 60;
+
+    function updateTimerDisplay() {
+      const m = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+      const s = String(totalSeconds % 60).padStart(2, '0');
+      document.getElementById('timer').innerText = `${m}:${s}`;
+    }
+
+    function setTimerPreset(seconds) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      initialPreset = seconds;
+      totalSeconds = seconds;
+      document.getElementById('timer-toggle').innerText = 'Start';
+      updateTimerDisplay();
+    }
+
+    function toggleTimer() {
+      const btn = document.getElementById('timer-toggle');
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+        btn.innerText = 'Start';
+      } else {
+        if (totalSeconds <= 0) totalSeconds = initialPreset;
+        timerInterval = setInterval(() => {
+          if (totalSeconds > 0) {
+            totalSeconds--;
+            updateTimerDisplay();
+          } else {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            btn.innerText = 'Start';
+            showToast('⏰ Rest time is up!');
+          }
+        }, 1000);
+        btn.innerText = 'Pause';
+      }
+    }
+
+    function resetTimer() {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      totalSeconds = initialPreset;
+      updateTimerDisplay();
+      document.getElementById('timer-toggle').innerText = 'Start';
+    }
+
+    /* Data Import / Export */
+    function openModal() { document.getElementById('data-modal').style.display = 'flex'; }
+    function closeModal() { document.getElementById('data-modal').style.display = 'none'; }
+    
+    function exportData() {
+      const blob = new Blob([JSON.stringify(store, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `workout_data_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+    }
+
+    function processImportData(jsonString) {
+      try {
+        const parsed = JSON.parse(jsonString);
+        if (typeof parsed === 'object' && parsed !== null) {
+          store = { ...store, ...parsed };
+          saveStore();
+          renderExercises();
+          closeModal();
+          showToast('Data imported successfully!');
+        }
+      } catch (e) {
+        showToast('Error: Invalid JSON format');
+      }
+    }
+
+    function importText() {
+      const text = document.getElementById('import-text').value;
+      if (text) processImportData(text);
+    }
+
+    function importFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => processImportData(evt.target.result);
+      reader.readAsText(file);
+    }
+
+    // App Initialization
+    initTabs();
+    renderExercises();
+    updateTimerDisplay();
+  </script>
+</body>
+</html>
